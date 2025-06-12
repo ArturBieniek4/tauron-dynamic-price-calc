@@ -1,0 +1,5 @@
+requests
+holidays
+python-dotenv
+py-telegram-notifier
+beautifulsoup4

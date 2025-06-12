@@ -4,6 +4,7 @@ import requests
 import holidays
 import time
 import json
+from bs4 import BeautifulSoup
 
 import dotenv
 from telegram_notifier import Notifier
@@ -11,7 +12,7 @@ from telegram_notifier import Notifier
 dotenv.load_dotenv()
 notifier = Notifier()
 
-TARGET_URL = "https://energy-api.instrat.pl/api/prices/energy_price_rdn_hourly?date_from=DATEHERET00:00:00Z&date_to=DATEHERET23:59:00Z"  # Replace with your target site
+TARGET_URL = "https://www.tge.pl/energia-elektryczna-rdn?dateShow=DATEHERE"  # Replace with your target site
 FETCH_TIME = {"hour": 14, "minute": 1}  # Fetch every day at 14:01
 fetched_today = False
 
@@ -50,12 +51,25 @@ def fetch_site():
         print(f"Fetching site content from url {url}")
         response = requests.get(url, timeout=10)
         response.raise_for_status()
-        content = json.loads(response.text)
-        if len(content)!=24: raise Exception(f"Content len is {len(content)}") 
-        data=[(i, val['fixing_i']['price']) for i, val in enumerate(content)]
-        data = [calcprice(row, today) for row in data]
-        print(data)
-        msg = formatted_date+"\n"
+        html = response.text
+        soup = BeautifulSoup(html, 'html.parser')
+        realdate_tag='dla dostawy w dniu '
+        realdate=html[html.find(realdate_tag)+len(realdate_tag):]
+        realdate=realdate[:realdate.find('<')]
+        assert realdate==formatted_date
+        rows = soup.find_all('tr')
+        table_data = []
+        for row in rows:
+            cells = row.find_all('td')
+            row_data = []
+            for cell in cells[:2]:
+                text = cell.get_text(strip=True)
+                row_data.append(text)
+            if row_data:
+                table_data.append(row_data)
+        data = [calcprice((int(row[0][:row[0].find('-')]), float(row[1].replace(',', '.').replace(' ', ''))), today) for row in table_data if row[0][0].isdigit() and '-' in row[0] and row[0][-1].isdigit()]
+        # print(data)
+        msg = realdate+"\n"
         for v in data:
             hr=str(v[0])+":00"
             if len(hr)==1: hr='0'+hr
