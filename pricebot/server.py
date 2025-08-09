@@ -44,8 +44,8 @@ def fetch_site():
     try:
         today = date.today()
         now = datetime.now()
-        if now.hour > 13 or (now.hour == 13 and now.minute >= 50):
-            today += timedelta(days=1)
+        if not (now.hour > 13 or (now.hour == 13 and now.minute >= 50)):
+            today -= timedelta(days=1)
         formatted_date = today.strftime("%d-%m-%Y")
         url = TARGET_URL.replace("DATEHERE", formatted_date)
         print(f"Fetching site content from url {url}")
@@ -56,7 +56,6 @@ def fetch_site():
         realdate_tag='dla dostawy w dniu '
         realdate=html[html.find(realdate_tag)+len(realdate_tag):]
         realdate=realdate[:realdate.find('<')]
-        assert realdate==formatted_date
         rows = soup.find_all('tr')
         table_data = []
         for row in rows:
